@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const API_URL = 'http://localhost:5000/api/rdv';
+const API_URL = '/api/rdv';
 
 function App() {
   const [activeTab, setActiveTab] = useState('medecin');
