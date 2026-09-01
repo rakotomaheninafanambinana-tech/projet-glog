@@ -6,8 +6,7 @@ import {
 } from 'lucide-react';
 import './App.css';
 
-const API_URL = '/api/rdv';
-
+const API_URL = 'https://projet-glog-backend1.onrender.com/api/rdv';
 function App() {
   const [activeTab, setActiveTab] = useState('medecin');
   const [rdvs, setRdvs] = useState([]);
