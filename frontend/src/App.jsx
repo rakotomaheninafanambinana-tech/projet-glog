@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Stethoscope, User, Calendar, ShieldCheck, Plus, X, 
-  Activity, FileText, HeartPulse, Trash2, Eye, Printer 
+  Activity, FileText, HeartPulse, Trash2, Eye, Printer, Edit 
 } from 'lucide-react';
 import './App.css';
 
 const API_URL = 'https://projet-glog-backend1.onrender.com/api/rdv';
+
 function App() {
   const [activeTab, setActiveTab] = useState('medecin');
   const [rdvs, setRdvs] = useState([]);
   const [selectedRdv, setSelectedRdv] = useState(null); // Pour la consultation en cours
   const [viewDetailsRdv, setViewDetailsRdv] = useState(null); // Pour la lecture du bilan terminé
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingRdvId, setEditingRdvId] = useState(null); // Pour savoir si on est en mode édition
 
   // Formulaire Patient
   const [patientForm, setPatientForm] = useState({
@@ -47,18 +49,60 @@ function App() {
     setPrescriptions(updated);
   };
 
-  const handleCreateRdv = async (e) => {
+  // --- CRUD PATIENT : CREATION & MODIFICATION ---
+  const handleSaveRdv = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(API_URL, patientForm);
+      if (editingRdvId) {
+        // UPDATE (Modification d'un RDV existant)
+        await axios.put(`${API_URL}/${editingRdvId}`, patientForm);
+        alert('Rendez-vous modifié avec succès.');
+        setEditingRdvId(null);
+      } else {
+        // CREATE (Création d'un nouveau RDV)
+        await axios.post(API_URL, patientForm);
+        alert('Demande de consultation transmise avec succès.');
+      }
       setPatientForm({ nom: '', age: '', genre: 'M', medecin: 'Dr. Rakoto (Généraliste)', date: '', motif: 'Consultation Générale', type: 'Présentiel' });
       fetchRdvs();
-      alert('Demande de consultation transmise avec succès.');
     } catch (err) {
-      alert(err.response?.data?.error || "Erreur lors de la réservation.");
+      alert(err.response?.data?.error || "Erreur lors de l'enregistrement.");
     }
   };
 
+  const handleEditClick = (rdv) => {
+    setEditingRdvId(rdv.id);
+    setPatientForm({
+      nom: rdv.nom || '',
+      age: rdv.age || '',
+      genre: rdv.genre || 'M',
+      medecin: rdv.medecin || 'Dr. Rakoto (Généraliste)',
+      date: rdv.date_rdv || '',
+      motif: rdv.motif || '',
+      type: rdv.type || 'Présentiel'
+    });
+    setActiveTab('patient'); // Redirige vers l'onglet patient pour modifier le formulaire
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRdvId(null);
+    setPatientForm({ nom: '', age: '', genre: 'M', medecin: 'Dr. Rakoto (Généraliste)', date: '', motif: 'Consultation Générale', type: 'Présentiel' });
+  };
+
+  // --- CRUD : SUPPRESSION ---
+  const handleDeleteRdv = async (id) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce rendez-vous ?")) {
+      try {
+        await axios.delete(`${API_URL}/${id}`);
+        fetchRdvs();
+        alert("Rendez-vous supprimé.");
+      } catch (err) {
+        alert("Erreur lors de la suppression.");
+      }
+    }
+  };
+
+  // --- STATUT ET CONSULTATION ---
   const handleUpdateStatus = async (id, status) => {
     try {
       await axios.patch(`${API_URL}/${id}/statut`, { status });
@@ -127,8 +171,11 @@ function App() {
       {activeTab === 'patient' && (
         <div className="grid-2col">
           <section className="card">
-            <h3 className="card-title blue"><Plus size={20} /> Demande de Consultation</h3>
-            <form onSubmit={handleCreateRdv} className="form-group">
+            <h3 className="card-title blue">
+              {editingRdvId ? <Edit size={20} /> : <Plus size={20} />} 
+              {editingRdvId ? 'Modifier la Demande' : 'Demande de Consultation'}
+            </h3>
+            <form onSubmit={handleSaveRdv} className="form-group">
               <div>
                 <label className="label-title">Nom Complet</label>
                 <input type="text" required value={patientForm.nom} onChange={e => setPatientForm({...patientForm, nom: e.target.value})} className="input-field" />
@@ -161,7 +208,16 @@ function App() {
                 <label className="label-title">Date & Heure souhaitées</label>
                 <input type="datetime-local" required value={patientForm.date} onChange={e => setPatientForm({...patientForm, date: e.target.value})} className="input-field" />
               </div>
-              <button type="submit" className="btn-primary-blue">Confirmer la demande</button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button type="submit" className="btn-primary-blue">
+                  {editingRdvId ? 'Enregistrer les modifications' : 'Confirmer la demande'}
+                </button>
+                {editingRdvId && (
+                  <button type="button" onClick={handleCancelEdit} className="btn-refuse" style={{ padding: '0.5rem 1rem' }}>
+                    Annuler
+                  </button>
+                )}
+              </div>
             </form>
           </section>
 
@@ -177,11 +233,19 @@ function App() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
                     <span className={`badge ${item.status}`}>{item.status}</span>
-                    {item.status === 'TERMINE' && item.consultation_data && (
-                      <button onClick={() => setViewDetailsRdv(item)} className="btn-consult" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>
-                        <Eye size={14} /> Voir Bilan
+                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                      {item.status === 'TERMINE' && item.consultation_data && (
+                        <button onClick={() => setViewDetailsRdv(item)} className="btn-consult" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>
+                          <Eye size={14} /> Voir Bilan
+                        </button>
+                      )}
+                      <button onClick={() => handleEditClick(item)} style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '0.3rem 0.5rem', borderRadius: '4px', cursor: 'pointer' }} title="Modifier">
+                        <Edit size={14} />
                       </button>
-                    )}
+                      <button onClick={() => handleDeleteRdv(item.id)} className="btn-delete" title="Supprimer">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -221,12 +285,12 @@ function App() {
                     </div>
                   </div>
 
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     {rdv.status === 'EN_ATTENTE' && (
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <>
                         <button onClick={() => handleUpdateStatus(rdv.id, 'CONFIRME')} className="btn-confirm">✓ Confirm</button>
                         <button onClick={() => handleUpdateStatus(rdv.id, 'REFUSE')} className="btn-refuse">✕ Refuser</button>
-                      </div>
+                      </>
                     )}
 
                     {rdv.status === 'CONFIRME' && (
@@ -240,6 +304,13 @@ function App() {
                         <Eye size={16} /> Fiche Médicale
                       </button>
                     )}
+
+                    <button onClick={() => handleEditClick(rdv)} style={{ background: '#f59e0b', color: 'white', border: 'none', padding: '0.4rem', borderRadius: '4px', cursor: 'pointer' }} title="Modifier">
+                      <Edit size={16} />
+                    </button>
+                    <button onClick={() => handleDeleteRdv(rdv.id)} className="btn-delete" title="Supprimer">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </div>
               ))}
