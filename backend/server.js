@@ -163,6 +163,6 @@ app.delete('/api/rdv/:id', (req, res) => {
 });
 
 // Lancement du serveur
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur actif sur http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Serveur actif sur le port ${PORT}`);
 });
