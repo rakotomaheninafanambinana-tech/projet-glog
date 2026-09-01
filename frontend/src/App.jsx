@@ -54,8 +54,9 @@ function App() {
     e.preventDefault();
     try {
       if (editingRdvId) {
-        // UPDATE (Modification d'un RDV existant)
-        await axios.put(`${API_URL}/${editingRdvId}`, patientForm);
+        // CORRECTION ICI : On modifie uniquement les informations du rendez-vous
+        // sans toucher au statut de consultation
+        await axios.patch(`${API_URL}/${editingRdvId}/infos`, patientForm);
         alert('Rendez-vous modifié avec succès.');
         setEditingRdvId(null);
       } else {

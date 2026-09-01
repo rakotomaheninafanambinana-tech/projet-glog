@@ -119,7 +119,45 @@ app.post('/api/rdv', (req, res) => {
   });
 });
 
-// 3. CHANGER LE STATUT DU RDV (Médecin: CONFIRME / REFUSE)
+// 3. MODIFIER LES INFORMATIONS D'UN RDV (Patient / Administration)
+app.patch('/api/rdv/:id/infos', (req, res) => {
+  const { id } = req.params;
+  const { nom, patient, age, genre, medecin, motif, type, date, date_rdv } = req.body;
+
+  const patientName = (nom || patient || '').trim();
+  const doctorName = (medecin || '').trim();
+  const appointmentDate = date || date_rdv;
+
+  if (!patientName || !doctorName || !appointmentDate) {
+    return res.status(400).json({ error: 'Champs nom, médecin et date requis.' });
+  }
+
+  const sql = `
+    UPDATE rdv 
+    SET patient = ?, age = ?, genre = ?, medecin = ?, motif = ?, type_consultation = ?, date_rdv = ?
+    WHERE id = ?
+  `;
+
+  const params = [
+    patientName,
+    age || null,
+    genre || 'M',
+    doctorName,
+    motif || 'Consultation Générale',
+    type || 'Présentiel',
+    appointmentDate,
+    id
+  ];
+
+  db.run(sql, params, function (err) {
+    if (err) return res.status(500).json({ error: 'Erreur lors de la modification', details: err.message });
+    if (this.changes === 0) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+
+    res.json({ message: 'Rendez-vous mis à jour avec succès.', id: Number(id) });
+  });
+});
+
+// 4. CHANGER LE STATUT DU RDV (Médecin: CONFIRME / REFUSE)
 app.patch('/api/rdv/:id/statut', (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -134,7 +172,7 @@ app.patch('/api/rdv/:id/statut', (req, res) => {
   });
 });
 
-// 4. CLÔTURER LA CONSULTATION ET SAUVEGARDER LE BILAN MÉDICAL (Médecin)
+// 5. CLÔTURER LA CONSULTATION ET SAUVEGARDER LE BILAN MÉDICAL (Médecin)
 app.put('/api/rdv/:id', (req, res) => {
   const { id } = req.params;
   const { consultation_data } = req.body;
@@ -153,7 +191,7 @@ app.put('/api/rdv/:id', (req, res) => {
   });
 });
 
-// 5. SUPPRIMER UN RDV
+// 6. SUPPRIMER UN RDV
 app.delete('/api/rdv/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM rdv WHERE id = ?', [id], function (err) {
