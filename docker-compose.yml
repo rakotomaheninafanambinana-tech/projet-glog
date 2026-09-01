@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: glog_backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/sante.db:/app/sante.db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: glog_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
